@@ -6,6 +6,7 @@ import android.media.MediaPlayer
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.MotionEvent
+import kotlin.random.Random
 
 class GameView(context: Context) : SurfaceView(context), Runnable {
 
@@ -33,6 +34,16 @@ class GameView(context: Context) : SurfaceView(context), Runnable {
 
     private var mediaPlayer: MediaPlayer? = null
 
+    private val meatballBitmap: Bitmap = Bitmap.createScaledBitmap(
+        BitmapFactory.decodeResource(resources, R.drawable.meatball),
+        100, 100, true
+    )
+
+    private val meatballs = mutableListOf<RectF>()
+    private var score = 0
+    private var meatballSpawnCounter = 0
+    private val spawnInterval = 60
+
     override fun run() {
         while (isPlaying) {
             update()
@@ -57,6 +68,26 @@ class GameView(context: Context) : SurfaceView(context), Runnable {
         if (backgroundX <= -width) {
             backgroundX = 0f
         }
+
+        meatballSpawnCounter++
+        if (meatballSpawnCounter >= spawnInterval) {
+            spawnMeatball()
+            meatballSpawnCounter = 0
+        }
+
+        val iterator = meatballs.iterator()
+        while (iterator.hasNext()) {
+            val meatball = iterator.next()
+            meatball.left -= backgroundSpeed
+            meatball.right -= backgroundSpeed
+
+            if (RectF(dogX, dogY, dogX + dog.width, dogY + dog.height).intersect(meatball)) {
+                iterator.remove()
+                score++
+            } else if (meatball.right < 0) {
+                iterator.remove()
+            }
+        }
     }
 
     private fun draw() {
@@ -73,7 +104,33 @@ class GameView(context: Context) : SurfaceView(context), Runnable {
 
         canvas.drawBitmap(dog, dogX, dogY, paint)
 
+        for (meatball in meatballs) {
+            canvas.drawBitmap(meatballBitmap, null, meatball, paint)
+        }
+
+        paint.color = Color.WHITE
+        paint.textSize = 60f
+        canvas.drawText("Score: $score", 50f, 100f, paint)
+
         surfaceHolder.unlockCanvasAndPost(canvas)
+    }
+
+    private fun spawnMeatball() {
+        val groundY = (height - dog.height - 370)
+        val jumpHeight = 250f
+        val levels = listOf(
+            groundY.toFloat(),
+            groundY - jumpHeight,
+            groundY - jumpHeight * 2
+        )
+        val y = levels.random()
+        val rect = RectF(
+            width.toFloat(),
+            y,
+            width + 100f,
+            y + 100f
+        )
+        meatballs.add(rect)
     }
 
     private fun sleep() {
